@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リースリングに氷を入れて</title>
+<style>
+  :root {
+    --bg: #15100d;
+    --panel: #221914;
+    --panel-light: #2d211a;
+    --text: #f0e6da;
+    --sub: #b8a692;
+    --accent: #d98f3b;
+    --accent-dark: #8a5a20;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 14px;
+    background: radial-gradient(ellipse at top, #241a14 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  }
+  #titlebar {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  #titlebar h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  #stage {
+    width: 100%;
+    max-width: 560px;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 28px 26px 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(217, 143, 59, 0.15);
+  }
+  #speaker {
+    font-size: 0.85rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    min-height: 1.2em;
+  }
+  #text {
+    font-size: 1.05rem;
+    line-height: 2;
+    white-space: pre-wrap;
+    min-height: 7em;
+    margin-bottom: 20px;
+  }
+  #choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .choice-btn {
+    text-align: left;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid rgba(217, 143, 59, 0.25);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .choice-btn:hover {
+    background: var(--accent-dark);
+    border-color: var(--accent);
+  }
+  #advance-hint {
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--sub);
+    cursor: pointer;
+    opacity: 0.8;
+  }
+  #advance-hint:hover { opacity: 1; }
+  #ending-title {
+    text-align: center;
+    font-size: 1.4rem;
+    color: var(--accent);
+    margin: 4px 0 18px;
+    letter-spacing: 0.08em;
+  }
+  #restart-btn {
+    display: block;
+    margin: 6px auto 0;
+    background: var(--accent);
+    color: #1a1208;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #restart-btn:hover { opacity: 0.88; }
+  #sound-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid rgba(217, 143, 59, 0.3);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  #sound-toggle:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+  <button id="sound-toggle">🔇 BGM: オフ</button>
+  <div id="titlebar">
+    <h1>リースリングに氷を入れて</h1>
+  </div>
+  <div id="stage">
+    <div id="speaker"></div>
+    <div id="text"></div>
+    <div id="ending-title" style="display:none;"></div>
+    <div id="choices"></div>
+    <div id="advance-hint" style="display:none;">▼ クリックして続ける</div>
+    <button id="restart-btn" style="display:none;">はじめから</button>
+  </div>
+  <audio id="bgm" src="theme.mp3" loop preload="none"></audio>
+
+<script>
+// --- ストーリーデータ ---
+// 各ノード: { speaker, text, next(文字列 or 省略=選択肢待ち), choices: [{label, setFlags, next}] }
+// next / choice.next は 文字列(ノードID) か、条件リスト [{if:[フラグ名,...], next:ノードID}, ..., {next:デフォルトノードID}] のどちらか
+
+const STORY = {
+  start: {
+    speaker: "",
+    text: "深夜のバー。会計を済ませようとしていたら、隣から聞き覚えのある声がした。\n「——リースリングに、氷を入れてください」\n耳を疑って振り返る。そこにいたのは、3年前に別れた涼子だった。",
+    next: "greet1",
+  },
+  greet1: {
+    speaker: "涼子",
+    text: "「……え、嘘でしょ」\n涼子はグラスを持ったまま固まっている。",
+    choices: [
+      { label: "「久しぶり。元気だった?」", next: "catchup1" },
+      { label: "「……涼子、だよな」", next: "catchup1" },
+      { label: "軽く会釈だけして、視線を外す", setFlags: { distant: true }, next: "catchup1_cold" },
+    ],
+  },
+  catchup1: {
+    speaker: "涼子",
+    text: "「元気……は、まあ元気。びっくりした、こんなところで会うなんて」\n涼子は少し笑って、隣の席を軽く叩く。「座りなよ、一杯くらい」",
+    next: "choice_catchup",
+  },
+  catchup1_cold: {
+    speaker: "涼子",
+    text: "「……そっか。偶然だね」\n涼子の声のトーンが少し硬くなる。それでも彼女は隣の席を指す。「……座る?」",
+    next: "choice_catchup",
+  },
+  choice_catchup: {
+    speaker: "",
+    text: "隣に座る。涼子が「で、最近どうだったの」と聞いてくる。",
+    choices: [
+      { label: "「この3年、色々あったよ。正直、全部うまくいったわけじゃない」", next: "catchup2" },
+      { label: "「仕事は順調だよ、昇進もしたし」", setFlags: { distant: true }, next: "catchup2" },
+      { label: "「それより、涼子は?」", next: "catchup2" },
+    ],
+  },
+  catchup2: {
+    speaker: "涼子",
+    text: "「私は……まあ、ぼちぼち。去年係長になった。あと——」\n少し間があって、涼子はグラスの氷を指でつつく。\n「ずっと、誰とも付き合ってない」",
+    next: "the_past1",
+  },
+  the_past1: {
+    speaker: "涼子",
+    text: "涼子は少しうつむいて、グラスを見つめる。\n「ねえ、あの時さ。ちゃんと話さなかったよね、私たち」\n店内のざわめきが、少し遠くなる気がした。",
+    choices: [
+      { label: "「ごめん。あの時の俺、ちゃんと向き合ってなかった」", setFlags: { apologized: true }, next: "the_past2" },
+      { label: "「お互い、忙しすぎたからな」", next: "the_past2" },
+      { label: "「……もう昔の話だろ」", setFlags: { distant: true }, next: "the_past2_cold" },
+    ],
+  },
+  the_past2: {
+    speaker: "涼子",
+    text: "涼子は少し驚いたように顔を上げる。「……うん。そうだね」\n小さく笑って、グラスを傾ける。「今更だけど、聞けてよかった」",
+    next: "order_callback",
+  },
+  the_past2_cold: {
+    speaker: "",
+    text: "涼子は小さく息を吐いて、何も言わずグラスを傾ける。\n空気が少し重くなる。",
+    next: "order_callback",
+  },
+  order_callback: {
+    speaker: "",
+    text: "ちょうどそこへ、バーテンダーが涼子の注文——氷の入ったリースリング——を運んでくる。\n「……まだそれ、頼むんだ」",
+    choices: [
+      { label: "「変わってないな。昔からだったよな、それ」", setFlags: { remembered: true }, next: "climax1" },
+      { label: "「へえ、知らなかった」", next: "climax1" },
+      { label: "「未だにそれ、変な飲み方だと思ってるよ」", next: "callback_tease" },
+    ],
+  },
+  callback_tease: {
+    speaker: "",
+    text: "",
+    next: [
+      { if: ["distant"], next: "callback_tease_cold" },
+      { next: "callback_tease_warm" },
+    ],
+  },
+  callback_tease_cold: {
+    speaker: "涼子",
+    text: "涼子の表情がわずかに硬くなる。\n「……そういうとこ、変わってないね」",
+    next: "climax1",
+  },
+  callback_tease_warm: {
+    speaker: "涼子",
+    text: "涼子はふっと笑う。\n「それ、前にもあなたが言ってたよ」",
+    setFlags: { remembered: true },
+    next: "climax1",
+  },
+  climax1: {
+    speaker: "涼子",
+    text: "氷がグラスの中で小さく音を立てる。\n涼子はしばらく黙って、それからゆっくり口を開いた。\n「……ねえ。また、こうやって飲みに行ってもいい?」",
+    choices: [
+      {
+        label: "「うん。また飲もう」",
+        next: [
+          { if: ["apologized", "remembered"], next: "ending_reconcile" },
+          { if: ["apologized"], next: "ending_awkward" },
+          { if: ["remembered"], next: "ending_awkward" },
+          { next: "ending_rejected" },
+        ],
+      },
+      {
+        label: "「……少し、考えさせてくれ」",
+        next: [
+          { if: ["distant"], next: "ending_cold" },
+          { next: "ending_open" },
+        ],
+      },
+      { label: "「——友達として、なら」", next: "ending_friends" },
+    ],
+  },
+
+  // --- エンディング ---
+  ending_reconcile: {
+    ending: "よりを戻せた",
+    speaker: "涼子",
+    text: "涼子は一瞬泣きそうな顔をして、それからふっと笑った。\n「……うん。じゃあ、今度は——ちゃんと、話そうね」\n三年越しの氷が、グラスの中で静かに溶けていった。",
+  },
+  ending_awkward: {
+    ending: "もう一歩",
+    speaker: "涼子",
+    text: "涼子は小さく頷いた。「……そうだね。また、連絡する」\nその声には、まだ少しだけ距離があるように聞こえた。\nけれど、それは「終わり」ではなく、「続き」の合図だった。",
+  },
+  ending_rejected: {
+    ending: "変われなかった",
+    speaker: "",
+    text: "涼子は少し困ったように笑って、グラスを置いた。\n「……そっか。じゃあ、今日はこれで」\n彼女は会計を済ませて、振り返らずに店を出て行った。",
+  },
+  ending_open: {
+    ending: "答えは、まだ",
+    speaker: "涼子",
+    text: "涼子は少し驚いた顔をして、それから小さく笑った。\n「……うん、いいよ。急がないから」\n彼女はそう言って、連絡先の書かれた紙ナプキンをそっと渡した。",
+  },
+  ending_cold: {
+    ending: "氷のままで",
+    speaker: "",
+    text: "涼子は少し目を伏せて、静かにグラスを置いた。\n「……そっか。わかった」\nそれ以上、何も言わずに彼女は会計を済ませた。\nもう、連絡先を渡されることはなかった。",
+  },
+  ending_friends: {
+    ending: "友達という答え",
+    speaker: "涼子",
+    text: "涼子は意外そうな顔をして、それから微笑んだ。\n「……それも、悪くないかもね」\n二人の間にあったのは、恋人でも他人でもない、新しい距離だった。",
+  },
+};
+
+// --- エンジン ---
+let flags = {};
+let currentId = "start";
+
+const speakerEl = document.getElementById("speaker");
+const textEl = document.getElementById("text");
+const choicesEl = document.getElementById("choices");
+const advanceHintEl = document.getElementById("advance-hint");
+const endingTitleEl = document.getElementById("ending-title");
+const restartBtnEl = document.getElementById("restart-btn");
+
+function resolveNext(nextSpec) {
+  if (typeof nextSpec === "string") return nextSpec;
+  for (const rule of nextSpec) {
+    if (!rule.if || rule.if.every((f) => flags[f])) return rule.next;
+  }
+  throw new Error("no matching rule for " + JSON.stringify(nextSpec));
+}
+
+function goTo(nodeId) {
+  currentId = nodeId;
+  const node = STORY[nodeId];
+
+  if (node.setFlags) Object.assign(flags, node.setFlags);
+
+  // テキストが空のノード(純粋な分岐用)は即座に次へ進む
+  if (node.text === "" && node.next) {
+    goTo(resolveNext(node.next));
+    return;
+  }
+
+  speakerEl.textContent = node.speaker || "";
+  textEl.textContent = node.text;
+  choicesEl.innerHTML = "";
+  advanceHintEl.style.display = "none";
+  endingTitleEl.style.display = "none";
+  restartBtnEl.style.display = "none";
+
+  if (node.ending) {
+    endingTitleEl.textContent = "— " + node.ending + " —";
+    endingTitleEl.style.display = "block";
+    restartBtnEl.style.display = "block";
+    return;
+  }
+
+  if (node.choices) {
+    for (const choice of node.choices) {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = choice.label;
+      btn.addEventListener("click", () => {
+        if (choice.setFlags) Object.assign(flags, choice.setFlags);
+        goTo(resolveNext(choice.next));
+      });
+      choicesEl.appendChild(btn);
+    }
+  } else if (node.next) {
+    advanceHintEl.style.display = "block";
+    advanceHintEl.onclick = () => goTo(resolveNext(node.next));
+    textEl.onclick = () => goTo(resolveNext(node.next));
+  }
+}
+
+function restart() {
+  flags = {};
+  goTo("start");
+}
+
+restartBtnEl.addEventListener("click", restart);
+
+goTo("start");
+
+// --- BGM ---
+const bgm = document.getElementById("bgm");
+const soundToggle = document.getElementById("sound-toggle");
+let soundOn = false;
+
+soundToggle.addEventListener("click", () => {
+  soundOn = !soundOn;
+  if (soundOn) {
+    bgm.play().catch(() => {});
+    soundToggle.textContent = "🔊 BGM: オン";
+  } else {
+    bgm.pause();
+    soundToggle.textContent = "🔇 BGM: オフ";
+  }
+});
+</script>
+</body>
+</html>
