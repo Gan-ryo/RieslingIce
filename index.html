@@ -127,7 +127,7 @@
 </style>
 </head>
 <body>
-  <button id="sound-toggle">🔇 BGM: オフ</button>
+  <button id="sound-toggle">🔊 BGM: オン</button>
   <div id="titlebar">
     <h1>リースリングに氷を入れて</h1>
   </div>
@@ -139,7 +139,7 @@
     <div id="advance-hint" style="display:none;">▼ クリックして続ける</div>
     <button id="restart-btn" style="display:none;">はじめから</button>
   </div>
-  <audio id="bgm" src="theme.mp3" loop preload="none"></audio>
+  <audio id="bgm" src="theme.mp3" loop preload="auto"></audio>
 
 <script>
 // --- ストーリーデータ ---
@@ -362,9 +362,21 @@ restartBtnEl.addEventListener("click", restart);
 goTo("start");
 
 // --- BGM ---
+// 最初からBGMオンの状態で始める。ブラウザの自動再生制限で再生開始がブロックされた
+// 場合は、最初のクリック(選択肢クリック等)をきっかけに再生をリトライする
 const bgm = document.getElementById("bgm");
 const soundToggle = document.getElementById("sound-toggle");
-let soundOn = false;
+let soundOn = true;
+soundToggle.textContent = "🔊 BGM: オン";
+bgm.play().catch(() => {});
+
+document.addEventListener(
+  "click",
+  () => {
+    if (soundOn && bgm.paused) bgm.play().catch(() => {});
+  },
+  { once: true }
+);
 
 soundToggle.addEventListener("click", () => {
   soundOn = !soundOn;
