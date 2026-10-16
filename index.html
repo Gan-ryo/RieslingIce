@@ -98,7 +98,7 @@
     margin: 4px 0 18px;
     letter-spacing: 0.08em;
   }
-  #restart-btn {
+  #restart-btn, #continue-btn {
     display: block;
     margin: 6px auto 0;
     background: var(--accent);
@@ -110,7 +110,12 @@
     font-weight: 600;
     cursor: pointer;
   }
-  #restart-btn:hover { opacity: 0.88; }
+  #restart-btn:hover, #continue-btn:hover { opacity: 0.88; }
+  #restart-btn {
+    background: transparent;
+    color: var(--sub);
+    border: 1px solid rgba(217, 143, 59, 0.3);
+  }
   #sound-toggle {
     position: fixed;
     top: 16px;
@@ -137,6 +142,7 @@
     <div id="ending-title" style="display:none;"></div>
     <div id="choices"></div>
     <div id="advance-hint" style="display:none;">▼ クリックして続ける</div>
+    <button id="continue-btn" style="display:none;">つづきへ</button>
     <button id="restart-btn" style="display:none;">はじめから</button>
   </div>
   <audio id="bgm" src="theme.mp3" loop preload="auto"></audio>
@@ -256,16 +262,20 @@ const STORY = {
     ],
   },
 
-  // --- エンディング ---
+  // --- エンディング(ステージ1) ---
+  // よりを戻す方向に進んだ3つのエンディングだけが continueTo を持ち、ステージ2へ続く。
+  // 「友達」「拒絶」「冷たい別れ」の3つは、その場で物語が完結する(続きは無い)
   ending_reconcile: {
     ending: "よりを戻せた",
     speaker: "涼子",
     text: "涼子は一瞬泣きそうな顔をして、それからふっと笑った。\n「……うん。じゃあ、今度は——ちゃんと、話そうね」\n三年越しの氷が、グラスの中で静かに溶けていった。",
+    continueTo: "s2_start_reconcile",
   },
   ending_awkward: {
     ending: "もう一歩",
     speaker: "涼子",
     text: "涼子は小さく頷いた。「……そうだね。また、連絡する」\nその声には、まだ少しだけ距離があるように聞こえた。\nけれど、それは「終わり」ではなく、「続き」の合図だった。",
+    continueTo: "s2_start_awkward",
   },
   ending_rejected: {
     ending: "変われなかった",
@@ -276,6 +286,7 @@ const STORY = {
     ending: "答えは、まだ",
     speaker: "涼子",
     text: "涼子は少し驚いた顔をして、それから小さく笑った。\n「……うん、いいよ。急がないから」\n彼女はそう言って、連絡先の書かれた紙ナプキンをそっと渡した。",
+    continueTo: "s2_start_open",
   },
   ending_cold: {
     ending: "氷のままで",
@@ -286,6 +297,128 @@ const STORY = {
     ending: "友達という答え",
     speaker: "涼子",
     text: "涼子は意外そうな顔をして、それから微笑んだ。\n「……それも、悪くないかもね」\n二人の間にあったのは、恋人でも他人でもない、新しい距離だった。",
+  },
+
+  // --- ステージ2: イタリアンレストランでのデート ---
+  // ゴール: 次のテーマパークデートに誘えるかどうか。ステージ1のエンディング別に導入文が変わる
+  s2_start_reconcile: {
+    speaker: "",
+    text: "— 二度目のデート —\n\nイタリアンレストランは、涼子が指定した店だった。あの夜から数週間——二人の距離は、少しずつ縮まっていた。",
+    next: "s2_memory1",
+  },
+  s2_start_awkward: {
+    speaker: "",
+    text: "— 二度目のデート —\n\nイタリアンレストランは、涼子が指定した店だった。あの夜からしばらく、連絡は途切れず続いていたけれど、まだどこかぎこちなさが残っていた。",
+    next: "s2_memory1",
+  },
+  s2_start_open: {
+    speaker: "",
+    text: "— 二度目のデート、と呼んでいいのかは分からない —\n\nそれでも涼子から「今度、ご飯でも」と連絡が来て、二人はイタリアンレストランにいた。",
+    next: "s2_memory1",
+  },
+  s2_memory1: {
+    speaker: "涼子",
+    text: "「そういえば、覚えてる? 海行った時、二人とも水着忘れてきて、結局そのまま入って、びしょ濡れで帰ったやつ」\n涼子は笑いながらグラスを傾ける。",
+    choices: [
+      { label: "「あったな、あれ。めちゃくちゃ寒かった」", setFlags: { nostalgic: true }, next: "s2_memory2" },
+      { label: "「え、そんなことあったっけ」", next: "s2_memory2" },
+      { label: "「よくあんな無茶したよな」", next: "s2_memory2" },
+    ],
+  },
+  s2_memory2: {
+    speaker: "涼子",
+    text: "「テーマパークではぐれた時も、焦ったなあ。結局、閉園間際まで会えなくて」\n少し遠い目をして、涼子はそう言った。",
+    choices: [
+      { label: "「あの時は本当に心配した。会えた瞬間、ほっとしたの覚えてる」", setFlags: { nostalgic: true }, next: "s2_pastissue1" },
+      { label: "「そんなこともあったな」", next: "s2_pastissue1" },
+      { label: "「俺が先に探しに行ったからだろ」", next: "s2_pastissue1" },
+    ],
+  },
+  s2_pastissue1: {
+    speaker: "涼子",
+    text: "涼子は少し真剣な顔になる。\n「……ねえ、前も少し話したけど。あの頃、仕事ばっかりで全然会えなくなってたよね」\n「正直、あの時は……すごく寂しかった」",
+    choices: [
+      { label: "「あの時は悪かったと思ってる。もっと時間作るべきだった」", setFlags: { resolved2: true }, next: "s2_pastissue2" },
+      { label: "「仕事だったから仕方なかったんだよ」", setFlags: { defensive2: true }, next: "s2_pastissue2" },
+      { label: "「今は違うから、大丈夫だよ」", next: "s2_pastissue2" },
+    ],
+  },
+  s2_pastissue2: {
+    speaker: "",
+    text: "",
+    next: [
+      { if: ["resolved2"], next: "s2_pastissue2_warm" },
+      { if: ["defensive2"], next: "s2_pastissue2_cold" },
+      { next: "s2_pastissue2_neutral" },
+    ],
+  },
+  s2_pastissue2_warm: {
+    speaker: "涼子",
+    text: "涼子は少し驚いたように、それからほっとしたように微笑む。\n「……そう言ってくれるだけで、だいぶ違う」",
+    next: "s2_climax",
+  },
+  s2_pastissue2_cold: {
+    speaker: "涼子",
+    text: "涼子は少し顔を曇らせる。\n「……そっか。まあ、昔のことだしね」\n声のトーンが、少しだけ平坦になる。",
+    next: "s2_climax",
+  },
+  s2_pastissue2_neutral: {
+    speaker: "涼子",
+    text: "涼子は小さく頷く。\n「……そう、だといいな」\nどこか言い切れていないような声だった。",
+    next: "s2_climax",
+  },
+  s2_climax: {
+    speaker: "涼子",
+    text: "涼子はグラスを置いて、少し照れたように笑う。\n「……今日、楽しかった。こういう時間、また作れたらいいな」",
+    next: "s2_final_choice",
+  },
+  s2_final_choice: {
+    speaker: "",
+    text: "次の約束を切り出すなら、今だ。",
+    choices: [
+      {
+        label: "「今度、一緒にテーマパーク行かない? あの時、ちゃんと最後まで一緒に回れなかったし」",
+        next: [
+          { if: ["defensive2"], next: "s2_ending_hesitant" },
+          { next: "s2_ending_success" },
+        ],
+      },
+      {
+        label: "「また、どこか行こうよ」",
+        next: [
+          { if: ["resolved2", "nostalgic"], next: "s2_ending_vague_success" },
+          { next: "s2_ending_vague_fail" },
+        ],
+      },
+      { label: "何も誘わず、今日の礼だけ言う", next: "s2_ending_no_invite" },
+    ],
+  },
+
+  // --- エンディング(ステージ2) ---
+  s2_ending_success: {
+    ending: "約束の続き",
+    speaker: "涼子",
+    text: "涼子は目を丸くして、それからふわっと笑った。\n「……うん! 今度こそ、ちゃんと最後まで一緒に回ろう」\n3年前には閉じていたはずの扉が、今度はちゃんと開いていた。",
+  },
+  s2_ending_hesitant: {
+    ending: "ためらいの先に",
+    speaker: "涼子",
+    text: "涼子は一瞬迷うように視線を落として、それから小さく頷いた。\n「……うん、行こうか」\nまだ少しだけ硬さが残る声。それでも、彼女は「行く」と言ってくれた。",
+  },
+  s2_ending_vague_success: {
+    ending: "言葉にしなくても",
+    speaker: "涼子",
+    text: "涼子は少し考えるように首をかしげて、それから微笑む。\n「……テーマパーク、また行きたいな」\n誘ったつもりはなかったのに、彼女のほうから、ちゃんと伝わっていた。",
+  },
+  s2_ending_vague_fail: {
+    ending: "もどかしさ",
+    speaker: "涼子",
+    text: "涼子は曖昧に微笑んで、グラスの脚を指でなぞる。\n「……そうだね、また今度」\nその「今度」が、いつになるのかは、わからないままだった。",
+  },
+  s2_ending_no_invite: {
+    ending: "言えなかった言葉",
+    speaker: "",
+    text: "結局、次の約束を切り出せないまま、食事は終わった。\n涼子は小さく笑って、「今日はありがとう」とだけ言った。\nテーマパークの話は、二人とも、口にしなかった。",
   },
 };
 
@@ -299,6 +432,7 @@ const choicesEl = document.getElementById("choices");
 const advanceHintEl = document.getElementById("advance-hint");
 const endingTitleEl = document.getElementById("ending-title");
 const restartBtnEl = document.getElementById("restart-btn");
+const continueBtnEl = document.getElementById("continue-btn");
 
 function resolveNext(nextSpec) {
   if (typeof nextSpec === "string") return nextSpec;
@@ -326,11 +460,16 @@ function goTo(nodeId) {
   advanceHintEl.style.display = "none";
   endingTitleEl.style.display = "none";
   restartBtnEl.style.display = "none";
+  continueBtnEl.style.display = "none";
 
   if (node.ending) {
     endingTitleEl.textContent = "— " + node.ending + " —";
     endingTitleEl.style.display = "block";
     restartBtnEl.style.display = "block";
+    if (node.continueTo) {
+      continueBtnEl.style.display = "block";
+      continueBtnEl.onclick = () => goTo(node.continueTo);
+    }
     return;
   }
 
