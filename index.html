@@ -95,9 +95,19 @@
     text-align: center;
     font-size: 1.4rem;
     color: var(--accent);
-    margin: 4px 0 18px;
+    margin: 4px 0 8px;
     letter-spacing: 0.08em;
   }
+  #ending-status {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin: 0 0 18px;
+    font-family: system-ui, sans-serif;
+  }
+  #ending-status.game-over { color: #c23b3b; }
+  #ending-status.to-be-continued { color: var(--accent); }
   #restart-btn, #continue-btn {
     display: block;
     margin: 6px auto 0;
@@ -140,6 +150,7 @@
     <div id="speaker"></div>
     <div id="text"></div>
     <div id="ending-title" style="display:none;"></div>
+    <div id="ending-status" style="display:none;"></div>
     <div id="choices"></div>
     <div id="advance-hint" style="display:none;">▼ クリックして続ける</div>
     <button id="continue-btn" style="display:none;">つづきへ</button>
@@ -528,6 +539,7 @@ const STORY = {
     ending: "来週の約束",
     speaker: "涼子",
     text: "涼子は観覧車を降りると、ぬいぐるみを抱えたまま、首をかしげた。\n「見せたいもの? ……何それ、気になるんだけど」\n「来年も、また一緒にここ来よう」——そう約束しながらも、二人の意識はもう、来週の予定に向かっていた。\n3年前のはぐれた記憶が、今日という一日に、そっと上書きされていった。",
+    finalSuccess: true, // 現時点の最終ステージのベストエンド。続編が示唆されることを示す(TO BE CONTINUED)
   },
   s3_ending_soft: {
     ending: "並んで歩く",
@@ -550,6 +562,7 @@ const textEl = document.getElementById("text");
 const choicesEl = document.getElementById("choices");
 const advanceHintEl = document.getElementById("advance-hint");
 const endingTitleEl = document.getElementById("ending-title");
+const endingStatusEl = document.getElementById("ending-status");
 const restartBtnEl = document.getElementById("restart-btn");
 const continueBtnEl = document.getElementById("continue-btn");
 
@@ -578,6 +591,8 @@ function goTo(nodeId) {
   choicesEl.innerHTML = "";
   advanceHintEl.style.display = "none";
   endingTitleEl.style.display = "none";
+  endingStatusEl.style.display = "none";
+  endingStatusEl.className = "";
   restartBtnEl.style.display = "none";
   continueBtnEl.style.display = "none";
 
@@ -586,8 +601,19 @@ function goTo(nodeId) {
     endingTitleEl.style.display = "block";
     restartBtnEl.style.display = "block";
     if (node.continueTo) {
+      // 次のステージへ進める(まだ道が続いている)
       continueBtnEl.style.display = "block";
       continueBtnEl.onclick = () => goTo(node.continueTo);
+    } else if (node.finalSuccess) {
+      // 現時点の最終ステージで成功したが、続編(次のステージ)はまだ実装されていない
+      endingStatusEl.textContent = "TO BE CONTINUED";
+      endingStatusEl.className = "to-be-continued";
+      endingStatusEl.style.display = "block";
+    } else {
+      // この先には進めない、物語がここで終わる行き止まり
+      endingStatusEl.textContent = "GAME OVER";
+      endingStatusEl.className = "game-over";
+      endingStatusEl.style.display = "block";
     }
     return;
   }
