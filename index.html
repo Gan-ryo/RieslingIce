@@ -826,7 +826,30 @@ function chatStageLabel() {
   return "ステージ1: 深夜のバーでの偶然の再会";
 }
 
-function buildRyokoSystemPrompt() {
+// 涼子のプロフィールは ryoko_profile.txt で編集できる。送信のたびに読み直すので、
+// ファイルを保存すれば再読み込み無しで反映される。読めない場合は内蔵のデフォルトを使う
+const DEFAULT_RYOKO_PROFILE = [
+  "- 30歳前後の会社員。最近昇進した。この3年はずっと一人だった。",
+  "- 彼とは、彼の仕事が忙しくなってすれ違い、別れた。当時は寂しかったが、彼を嫌いになったわけではない。",
+  "- バーではいつも「リースリングに氷を入れて」を頼む。",
+  "- 思い出: 水着を忘れて海でびしょ濡れになった日、テーマパークではぐれて閉園間際にやっと会えた日。",
+  "- 素直になるのが少し苦手で、照れると軽く茶化す。でも根は優しく、誠実な言葉にはきちんと心を動かされる。",
+].join("\n");
+
+function parseRyokoProfile(text) {
+  return String(text || "").split(/\r?\n/).filter((l) => !l.trim().startsWith("#")).join("\n").trim();
+}
+async function loadRyokoProfile() {
+  try {
+    const res = await fetch("ryoko_profile.txt", { cache: "no-store" });
+    if (!res.ok) return DEFAULT_RYOKO_PROFILE;
+    return parseRyokoProfile(await res.text()) || DEFAULT_RYOKO_PROFILE;
+  } catch (e) {
+    return DEFAULT_RYOKO_PROFILE;
+  }
+}
+
+function buildRyokoSystemPrompt(profile) {
   const facts = Object.keys(FLAG_FACTS).filter((f) => flags[f]).map((f) => "- " + FLAG_FACTS[f]);
   const node = STORY[currentId];
   const ending = node && node.ending ? "いまは「" + node.ending + "」という場面まで来ている。直前の涼子の言葉: " + node.text.replace(/\n/g, " ") : "";
@@ -834,11 +857,7 @@ function buildRyokoSystemPrompt() {
     "あなたは恋愛シミュレーションゲーム「リースリングに氷を入れて」のヒロイン、涼子を演じます。プレイヤーは、3年前に別れた元恋人の「彼」です。いま彼とスマホのメッセージアプリでやり取りしています。",
     "",
     "# 涼子について",
-    "- 30歳前後の会社員。最近昇進した。この3年はずっと一人だった。",
-    "- 彼とは、彼の仕事が忙しくなってすれ違い、別れた。当時は寂しかったが、彼を嫌いになったわけではない。",
-    "- バーではいつも「リースリングに氷を入れて」を頼む。",
-    "- 思い出: 水着を忘れて海でびしょ濡れになった日、テーマパークではぐれて閉園間際にやっと会えた日。",
-    "- 素直になるのが少し苦手で、照れると軽く茶化す。でも根は優しく、誠実な言葉にはきちんと心を動かされる。",
+    profile,
     "",
     "# いまの二人の状況",
     "- 物語の進行: " + chatStageLabel(),
@@ -863,6 +882,7 @@ function extractReply(data) {
 }
 
 async function callRyoko(history) {
+  const profile = await loadRyokoProfile();
   const res = await fetch(CHAT_ENDPOINT + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -871,7 +891,7 @@ async function callRyoko(history) {
       max_tokens: 400,
       temperature: 0.8,
       stream: false,
-      messages: [{ role: "system", content: buildRyokoSystemPrompt() }].concat(history.slice(-CHAT_MAX_HISTORY)),
+      messages: [{ role: "system", content: buildRyokoSystemPrompt(profile) }].concat(history.slice(-CHAT_MAX_HISTORY)),
     }),
   });
   if (!res.ok) {
