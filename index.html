@@ -194,32 +194,6 @@
     font-size: 1.1rem;
     cursor: pointer;
   }
-  #chat-setup {
-    padding: 14px 16px;
-    font-size: 0.8rem;
-    line-height: 1.7;
-    color: var(--sub);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  #chat-setup input[type=text] {
-    width: 100%;
-    margin: 8px 0;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(217, 143, 59, 0.3);
-    background: var(--bg);
-    color: var(--text);
-  }
-  #chat-setup button, #chat-tools button {
-    background: var(--accent);
-    color: #1a1208;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
   #chat-tools {
     display: flex;
     gap: 8px;
@@ -293,16 +267,8 @@
   <div id="chat-panel">
     <div id="chat-box">
       <div id="chat-head"><span>涼子</span><button id="chat-close" aria-label="閉じる">✕</button></div>
-      <div id="chat-setup">
-        涼子との会話には、ローカルLLM(Ollama / LM Studio など OpenAI 互換のサーバー)を使います。
-        会話の内容は、ここで指定したサーバー以外へは送信されません。
-        <input id="chat-endpoint" type="text" placeholder="http://localhost:11434/v1" autocomplete="off">
-        <input id="chat-model" type="text" placeholder="モデル名(例: qwen3-vl:8b-instruct-q4_K_M)" autocomplete="off">
-        <button id="chat-key-save">保存して始める</button>
-      </div>
-      <div id="chat-tools" style="display:none;">
+      <div id="chat-tools">
         <button id="chat-clear">履歴を消す</button>
-        <button id="chat-key-del">接続設定を変更</button>
       </div>
       <div id="chat-log"></div>
       <form id="chat-form">
@@ -829,11 +795,11 @@ soundToggle.addEventListener("click", () => {
 });
 
 // --- 涼子とチャット(ローカルLLM) ---
-// OpenAI互換の /chat/completions を持つローカルサーバー(Ollama など)を呼ぶ。
-// 接続先とモデル名はプレイヤーが指定し、localStorage にだけ保存する。
-// ブラウザから呼ぶため、サーバー側でこのページのオリジンのCORS許可が必要
-// (Ollama なら OLLAMA_ORIGINS)
-const CHAT_CFG_STORAGE = "riesling_llm_config";
+// OpenAI互換の /chat/completions を持つローカルサーバー(Ollama)を呼ぶ。
+// モデルと接続先は内部で固定し、プレイヤーには設定させない。
+// ブラウザから呼ぶため、サーバー側でこのページのオリジンのCORS許可が必要(Ollama なら OLLAMA_ORIGINS)
+const CHAT_MODEL = "qwen3-vl:8b-instruct-q4_K_M";
+const CHAT_ENDPOINT = "http://192.168.3.25:11434/v1"; // この機械のOllama(LAN固定IP)
 const CHAT_MAX_HISTORY = 40;
 let chatHistory = [];
 let chatBusy = false;
@@ -843,19 +809,6 @@ let chatBusy = false;
 function chatIsLocalHost() {
   return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
 }
-function chatDefaultEndpoint() {
-  return "http://" + (chatIsLocalHost() ? location.hostname : "localhost") + ":11434/v1";
-}
-function chatCfgGet() {
-  try {
-    const c = JSON.parse(localStorage.getItem(CHAT_CFG_STORAGE) || "null");
-    return c && c.endpoint && c.model ? c : null;
-  } catch (e) { return null; }
-}
-function chatCfgSet(c) {
-  try { if (c) localStorage.setItem(CHAT_CFG_STORAGE, JSON.stringify(c)); else localStorage.removeItem(CHAT_CFG_STORAGE); } catch (e) {}
-}
-
 const FLAG_FACTS = {
   distant: "再会の場で、彼は素っ気ない・防御的な態度を取ったことがあった",
   apologized: "彼は、3年前に向き合えなかったことを素直に謝ってくれた",
@@ -909,12 +862,12 @@ function extractReply(data) {
   return { text, refused: false };
 }
 
-async function callRyoko(cfg, history) {
-  const res = await fetch(cfg.endpoint.replace(/\/+$/, "") + "/chat/completions", {
+async function callRyoko(history) {
+  const res = await fetch(CHAT_ENDPOINT + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: cfg.model,
+      model: CHAT_MODEL,
       max_tokens: 400,
       temperature: 0.8,
       stream: false,
@@ -935,8 +888,6 @@ const chatPanelEl = document.getElementById("chat-panel");
 const chatLogEl = document.getElementById("chat-log");
 const chatInputEl = document.getElementById("chat-input");
 const chatSendEl = document.getElementById("chat-send");
-const chatSetupEl = document.getElementById("chat-setup");
-const chatToolsEl = document.getElementById("chat-tools");
 
 function chatAdd(kind, text) {
   const el = document.createElement("div");
@@ -948,17 +899,12 @@ function chatAdd(kind, text) {
 }
 
 function chatRefreshSetup() {
-  const has = !!chatCfgGet();
-  chatSetupEl.style.display = has ? "none" : "block";
-  chatToolsEl.style.display = has ? "flex" : "none";
-  chatInputEl.disabled = !has;
-  chatSendEl.disabled = !has || chatBusy;
+  chatSendEl.disabled = chatBusy;
 }
 
 async function chatSend() {
   const text = chatInputEl.value.trim();
-  const cfg = chatCfgGet();
-  if (!text || !cfg || chatBusy) return;
+  if (!text || chatBusy) return;
   chatInputEl.value = "";
   chatBusy = true;
   chatRefreshSetup();
@@ -966,7 +912,7 @@ async function chatSend() {
   chatAdd("me", text);
   const typing = chatAdd("note", "涼子が入力中…");
   try {
-    const reply = await callRyoko(cfg, chatHistory);
+    const reply = await callRyoko(chatHistory);
     typing.remove();
     if (reply.refused || !reply.text) {
       chatHistory.pop();
@@ -978,7 +924,7 @@ async function chatSend() {
   } catch (e) {
     typing.remove();
     chatHistory.pop();
-    const msg = e.status === 404 ? "モデルまたは接続先が見つかりません。接続設定を確認してください(" + e.message + ")"
+    const msg = e.status === 404 ? "モデルまたは接続先が見つかりません。接続先を確認してください(" + e.message + ")"
       : e instanceof TypeError ? "ローカルLLMに接続できません。サーバーの起動と、CORS設定(Ollama なら OLLAMA_ORIGINS)を確認してください。"
       : "通信に失敗しました: " + e.message;
     chatAdd("note", msg);
@@ -993,25 +939,9 @@ if (!chatIsLocalHost()) document.getElementById("chat-open").style.display = "no
 document.getElementById("chat-open").addEventListener("click", () => {
   chatPanelEl.classList.add("show");
   chatRefreshSetup();
-  const epEl = document.getElementById("chat-endpoint");
-  if (!epEl.value) epEl.value = chatDefaultEndpoint();
   if (chatLogEl.children.length === 0) chatAdd("note", "涼子にメッセージを送ってみよう。物語の進み具合や、これまでの選択が会話に反映されます。");
 });
 document.getElementById("chat-close").addEventListener("click", () => chatPanelEl.classList.remove("show"));
-document.getElementById("chat-key-save").addEventListener("click", () => {
-  const endpoint = document.getElementById("chat-endpoint").value.trim() || chatDefaultEndpoint();
-  const model = document.getElementById("chat-model").value.trim();
-  if (!model) return;
-  chatCfgSet({ endpoint, model });
-  chatRefreshSetup();
-});
-document.getElementById("chat-key-del").addEventListener("click", () => {
-  const c = chatCfgGet();
-  document.getElementById("chat-endpoint").value = c ? c.endpoint : chatDefaultEndpoint();
-  document.getElementById("chat-model").value = c ? c.model : "";
-  chatCfgSet(null);
-  chatRefreshSetup();
-});
 document.getElementById("chat-clear").addEventListener("click", () => { chatHistory = []; chatLogEl.innerHTML = ""; chatAdd("note", "履歴を消しました。"); });
 document.getElementById("chat-form").addEventListener("submit", (e) => { e.preventDefault(); chatSend(); });
 </script>
