@@ -139,6 +139,139 @@
     cursor: pointer;
   }
   #sound-toggle:hover { border-color: var(--accent); }
+
+  /* --- 涼子とチャット --- */
+  #chat-open {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid rgba(217, 143, 59, 0.3);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    z-index: 20;
+  }
+  #chat-open:hover { border-color: var(--accent); }
+  #chat-panel {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 30;
+    padding: 14px;
+  }
+  #chat-panel.show { display: flex; }
+  #chat-box {
+    width: 100%;
+    max-width: 480px;
+    height: min(86vh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid rgba(217, 143, 59, 0.25);
+    border-radius: 16px;
+    overflow: hidden;
+    font-family: system-ui, "Noto Sans JP", sans-serif;
+  }
+  #chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--panel-light);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  #chat-head button {
+    background: transparent;
+    border: none;
+    color: var(--sub);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  #chat-setup {
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--sub);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  #chat-setup input[type=text] {
+    width: 100%;
+    margin: 8px 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(217, 143, 59, 0.3);
+    background: var(--bg);
+    color: var(--text);
+  }
+  #chat-setup button, #chat-tools button {
+    background: var(--accent);
+    color: #1a1208;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #chat-tools {
+    display: flex;
+    gap: 8px;
+    padding: 6px 16px;
+    justify-content: flex-end;
+  }
+  #chat-tools button {
+    background: transparent;
+    color: var(--sub);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: 400;
+  }
+  #chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-msg {
+    max-width: 80%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    line-height: 1.6;
+    font-size: 0.92rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .chat-msg.ryoko { align-self: flex-start; background: var(--panel-light); }
+  .chat-msg.me { align-self: flex-end; background: var(--accent); color: #1a1208; }
+  .chat-msg.note { align-self: center; background: transparent; color: var(--sub); font-size: 0.78rem; text-align: center; }
+  #chat-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+  #chat-input {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(217, 143, 59, 0.3);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.92rem;
+  }
+  #chat-send {
+    background: var(--accent);
+    color: #1a1208;
+    border: none;
+    border-radius: 10px;
+    padding: 0 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #chat-send:disabled { opacity: 0.5; cursor: default; }
 </style>
 </head>
 <body>
@@ -155,6 +288,28 @@
     <div id="advance-hint" style="display:none;">▼ クリックして続ける</div>
     <button id="continue-btn" style="display:none;">つづきへ</button>
     <button id="restart-btn" style="display:none;">はじめから</button>
+  </div>
+  <button id="chat-open">💬 涼子とチャット</button>
+  <div id="chat-panel">
+    <div id="chat-box">
+      <div id="chat-head"><span>涼子</span><button id="chat-close" aria-label="閉じる">✕</button></div>
+      <div id="chat-setup">
+        涼子との会話には、ローカルLLM(Ollama / LM Studio など OpenAI 互換のサーバー)を使います。
+        会話の内容は、ここで指定したサーバー以外へは送信されません。
+        <input id="chat-endpoint" type="text" placeholder="http://localhost:11434/v1" autocomplete="off">
+        <input id="chat-model" type="text" placeholder="モデル名(例: qwen3-vl:8b-instruct-q4_K_M)" autocomplete="off">
+        <button id="chat-key-save">保存して始める</button>
+      </div>
+      <div id="chat-tools" style="display:none;">
+        <button id="chat-clear">履歴を消す</button>
+        <button id="chat-key-del">接続設定を変更</button>
+      </div>
+      <div id="chat-log"></div>
+      <form id="chat-form">
+        <input id="chat-input" type="text" placeholder="メッセージを入力" autocomplete="off">
+        <button id="chat-send" type="submit">送信</button>
+      </form>
+    </div>
   </div>
   <audio id="bgm" src="theme.mp3" loop preload="auto"></audio>
 
@@ -672,6 +827,189 @@ soundToggle.addEventListener("click", () => {
     soundToggle.textContent = "🔇 BGM: オフ";
   }
 });
+
+// --- 涼子とチャット(ローカルLLM) ---
+// OpenAI互換の /chat/completions を持つローカルサーバー(Ollama など)を呼ぶ。
+// 接続先とモデル名はプレイヤーが指定し、localStorage にだけ保存する。
+// ブラウザから呼ぶため、サーバー側でこのページのオリジンのCORS許可が必要
+// (Ollama なら OLLAMA_ORIGINS)
+const CHAT_CFG_STORAGE = "riesling_llm_config";
+const CHAT_MAX_HISTORY = 40;
+let chatHistory = [];
+let chatBusy = false;
+
+function chatDefaultEndpoint() {
+  const h = location.hostname;
+  const local = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.)/.test(h);
+  return "http://" + (local && h ? h : "localhost") + ":11434/v1";
+}
+function chatCfgGet() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CHAT_CFG_STORAGE) || "null");
+    return c && c.endpoint && c.model ? c : null;
+  } catch (e) { return null; }
+}
+function chatCfgSet(c) {
+  try { if (c) localStorage.setItem(CHAT_CFG_STORAGE, JSON.stringify(c)); else localStorage.removeItem(CHAT_CFG_STORAGE); } catch (e) {}
+}
+
+const FLAG_FACTS = {
+  distant: "再会の場で、彼は素っ気ない・防御的な態度を取ったことがあった",
+  apologized: "彼は、3年前に向き合えなかったことを素直に謝ってくれた",
+  remembered: "彼は、涼子がいつも頼む「リースリングに氷」を覚えていた",
+  nostalgic: "二人の思い出話に、彼は温かく応じてくれた",
+  resolved2: "仕事で寂しい思いをさせたことを、彼は認めて謝ってくれた",
+  defensive2: "仕事のことを、彼は「仕方なかった」と言い訳した",
+  attentive: "テーマパークで、彼ははぐれないよう気遣ってくれた",
+  wonPrize: "3年前に取れなかったぬいぐるみを、彼は今日取ってくれた",
+};
+
+function chatStageLabel() {
+  if (currentId.startsWith("s3_")) return "ステージ3: テーマパークデート(3年前にはぐれた場所を再訪した日)";
+  if (currentId.startsWith("s2_")) return "ステージ2: イタリアンレストランでの2回目のデート";
+  return "ステージ1: 深夜のバーでの偶然の再会";
+}
+
+function buildRyokoSystemPrompt() {
+  const facts = Object.keys(FLAG_FACTS).filter((f) => flags[f]).map((f) => "- " + FLAG_FACTS[f]);
+  const node = STORY[currentId];
+  const ending = node && node.ending ? "いまは「" + node.ending + "」という場面まで来ている。直前の涼子の言葉: " + node.text.replace(/\n/g, " ") : "";
+  return [
+    "あなたは恋愛シミュレーションゲーム「リースリングに氷を入れて」のヒロイン、涼子を演じます。プレイヤーは、3年前に別れた元恋人の「彼」です。いま彼とスマホのメッセージアプリでやり取りしています。",
+    "",
+    "# 涼子について",
+    "- 30歳前後の会社員。最近昇進した。この3年はずっと一人だった。",
+    "- 彼とは、彼の仕事が忙しくなってすれ違い、別れた。当時は寂しかったが、彼を嫌いになったわけではない。",
+    "- バーではいつも「リースリングに氷を入れて」を頼む。",
+    "- 思い出: 水着を忘れて海でびしょ濡れになった日、テーマパークではぐれて閉園間際にやっと会えた日。",
+    "- 素直になるのが少し苦手で、照れると軽く茶化す。でも根は優しく、誠実な言葉にはきちんと心を動かされる。",
+    "",
+    "# いまの二人の状況",
+    "- 物語の進行: " + chatStageLabel(),
+    ending,
+    facts.length ? "- ここまでの彼の振る舞い(涼子はこれを覚えていて、態度に反映する):\n" + facts.join("\n") : "- まだ会話は始まったばかりで、特筆すべきやり取りはない。",
+    "",
+    "# 守ること",
+    "- 日本語のメッセージアプリらしい、短く自然な話し言葉で返す。1〜3文程度。絵文字は使っても控えめに。Markdownや箇条書きは使わない。",
+    "- 常に涼子として返事をする。ナレーションや心の声の描写、「涼子:」のような名前の接頭辞は付けない。",
+    "- 二人が正式に付き合っているかどうかは、まだ曖昧なまま。涼子から交際を確定させたり、告白したりしない。距離が縮まる雰囲気はあってよい。",
+    "- 上の「いまの二人の状況」と矛盾する出来事を作らない。新しい細かい設定を足すときは、控えめに。",
+    "- 彼の態度が冷たければ涼子も距離を置き、誠実なら少しずつ心を開く。",
+    "- プレイヤーが本気でAIかどうかを尋ねたときだけは、キャラクターを離れて、AIが演じていることを正直に伝える。",
+  ].filter((l) => l !== "").join("\n");
+}
+
+// Qwen3 系などが出す <think>...</think> は表示しない
+function extractReply(data) {
+  const raw = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
+  const text = String(raw || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  return { text, refused: false };
+}
+
+async function callRyoko(cfg, history) {
+  const res = await fetch(cfg.endpoint.replace(/\/+$/, "") + "/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model: cfg.model,
+      max_tokens: 400,
+      temperature: 0.8,
+      stream: false,
+      messages: [{ role: "system", content: buildRyokoSystemPrompt() }].concat(history.slice(-CHAT_MAX_HISTORY)),
+    }),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try { const j = await res.json(); detail = (j.error && (j.error.message || j.error)) || ""; } catch (e) {}
+    const err = new Error(String(detail) || "HTTP " + res.status);
+    err.status = res.status;
+    throw err;
+  }
+  return extractReply(await res.json());
+}
+
+const chatPanelEl = document.getElementById("chat-panel");
+const chatLogEl = document.getElementById("chat-log");
+const chatInputEl = document.getElementById("chat-input");
+const chatSendEl = document.getElementById("chat-send");
+const chatSetupEl = document.getElementById("chat-setup");
+const chatToolsEl = document.getElementById("chat-tools");
+
+function chatAdd(kind, text) {
+  const el = document.createElement("div");
+  el.className = "chat-msg " + kind;
+  el.textContent = text; // textContent のみ使用(XSS対策)
+  chatLogEl.appendChild(el);
+  chatLogEl.scrollTop = chatLogEl.scrollHeight;
+  return el;
+}
+
+function chatRefreshSetup() {
+  const has = !!chatCfgGet();
+  chatSetupEl.style.display = has ? "none" : "block";
+  chatToolsEl.style.display = has ? "flex" : "none";
+  chatInputEl.disabled = !has;
+  chatSendEl.disabled = !has || chatBusy;
+}
+
+async function chatSend() {
+  const text = chatInputEl.value.trim();
+  const cfg = chatCfgGet();
+  if (!text || !cfg || chatBusy) return;
+  chatInputEl.value = "";
+  chatBusy = true;
+  chatRefreshSetup();
+  chatHistory.push({ role: "user", content: text });
+  chatAdd("me", text);
+  const typing = chatAdd("note", "涼子が入力中…");
+  try {
+    const reply = await callRyoko(cfg, chatHistory);
+    typing.remove();
+    if (reply.refused || !reply.text) {
+      chatHistory.pop();
+      chatAdd("note", "……涼子は、うまく返事ができなかったようだ。別の言い方で送ってみてください。");
+    } else {
+      chatHistory.push({ role: "assistant", content: reply.text });
+      chatAdd("ryoko", reply.text);
+    }
+  } catch (e) {
+    typing.remove();
+    chatHistory.pop();
+    const msg = e.status === 404 ? "モデルまたは接続先が見つかりません。接続設定を確認してください(" + e.message + ")"
+      : e instanceof TypeError ? "ローカルLLMに接続できません。サーバーの起動と、CORS設定(Ollama なら OLLAMA_ORIGINS)を確認してください。"
+      : "通信に失敗しました: " + e.message;
+    chatAdd("note", msg);
+  } finally {
+    chatBusy = false;
+    chatRefreshSetup();
+    chatInputEl.focus();
+  }
+}
+
+document.getElementById("chat-open").addEventListener("click", () => {
+  chatPanelEl.classList.add("show");
+  chatRefreshSetup();
+  const epEl = document.getElementById("chat-endpoint");
+  if (!epEl.value) epEl.value = chatDefaultEndpoint();
+  if (chatLogEl.children.length === 0) chatAdd("note", "涼子にメッセージを送ってみよう。物語の進み具合や、これまでの選択が会話に反映されます。");
+});
+document.getElementById("chat-close").addEventListener("click", () => chatPanelEl.classList.remove("show"));
+document.getElementById("chat-key-save").addEventListener("click", () => {
+  const endpoint = document.getElementById("chat-endpoint").value.trim() || chatDefaultEndpoint();
+  const model = document.getElementById("chat-model").value.trim();
+  if (!model) return;
+  chatCfgSet({ endpoint, model });
+  chatRefreshSetup();
+});
+document.getElementById("chat-key-del").addEventListener("click", () => {
+  const c = chatCfgGet();
+  document.getElementById("chat-endpoint").value = c ? c.endpoint : chatDefaultEndpoint();
+  document.getElementById("chat-model").value = c ? c.model : "";
+  chatCfgSet(null);
+  chatRefreshSetup();
+});
+document.getElementById("chat-clear").addEventListener("click", () => { chatHistory = []; chatLogEl.innerHTML = ""; chatAdd("note", "履歴を消しました。"); });
+document.getElementById("chat-form").addEventListener("submit", (e) => { e.preventDefault(); chatSend(); });
 </script>
 </body>
 </html>
