@@ -838,10 +838,13 @@ const CHAT_MAX_HISTORY = 40;
 let chatHistory = [];
 let chatBusy = false;
 
+// チャットは「この機械(localhost)」と「自宅LAN」で開いたときだけ使える。
+// GitHub Pages や Tailscale(100.x)など、それ以外のホストでは機能ごと無効にする
+function chatIsLocalHost() {
+  return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+}
 function chatDefaultEndpoint() {
-  const h = location.hostname;
-  const local = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.)/.test(h);
-  return "http://" + (local && h ? h : "localhost") + ":11434/v1";
+  return "http://" + (chatIsLocalHost() ? location.hostname : "localhost") + ":11434/v1";
 }
 function chatCfgGet() {
   try {
@@ -986,6 +989,7 @@ async function chatSend() {
   }
 }
 
+if (!chatIsLocalHost()) document.getElementById("chat-open").style.display = "none";
 document.getElementById("chat-open").addEventListener("click", () => {
   chatPanelEl.classList.add("show");
   chatRefreshSetup();
